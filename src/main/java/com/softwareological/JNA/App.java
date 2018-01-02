@@ -1,5 +1,8 @@
 package com.softwareological.JNA;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
+
 import javafx.animation.FadeTransition;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
@@ -11,12 +14,17 @@ import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.control.TextArea;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Screen;
@@ -25,13 +33,17 @@ import javafx.stage.StageStyle;
 import javafx.util.Duration;
 
 public class App extends Application{
-
+	
 	public static final String APPLICATION_ICON =
 			"https://cdn1.iconfinder.com/data/icons/"
 			+ "designer-s-tools-1/512/Notes-128.png";
 
 	public static final String SPLASH_SCREEN_IMAGE =
 			"http://ktpsolutions.co.za/images/jna.png";
+	
+	public static Resource_Manager RESOURCE_MANAGER;
+	
+	public static User USER;
 
 	private static final int SPLASH_WIDTH = 676;
     private static final int SPLASH_HEIGHT = 227;
@@ -49,11 +61,31 @@ public class App extends Application{
 	private Pane splash_layout;
 	private ProgressBar progress_bar;
 	private Label lbl_progress_status;
-	private Stage primary_stage;
+	private static Stage primary_stage;
+	private static Parent root;
+	
+	
+	static
+	{
+		RESOURCE_MANAGER = new Resource_Manager(
+				"jdbc:postgresql://tantor.db.elephantsql.com:5432/nyvmxvuu",
+				"nyvmxvuu",
+				"Q4bznh8jhzvTGDzTZKuhPEObjNbq4ha7");
+	}
 
 	public static void main(String[] args)
 	{
 		launch(args);
+		
+		Runtime.getRuntime().addShutdownHook(new Thread()
+        {
+            @Override
+            public void run()
+            {
+            	RESOURCE_MANAGER.cleanResources();
+            	System.out.println("Shutdown!");
+            }
+        });
 	}
 
 	@Override
@@ -144,15 +176,46 @@ public class App extends Application{
 	                APPLICATION_ICON
 	        ));
 			
-			Parent root = FXMLLoader.load(
-					getClass().getClassLoader().getResource("Application_UI.fxml"));
-			Scene scene = new Scene(root, 800, 500);
+			root = FXMLLoader.load(
+					getClass().getClassLoader().getResource("StartScreen_UI.fxml"));
+			Scene scene = new Scene(root, 600, 500);
 			primary_stage.setScene(scene);
+			primary_stage.setResizable(false);
 			primary_stage.show();
 		}
 		catch(Exception e)
 		{
-			e.printStackTrace();
+			Alert alert = new Alert(AlertType.ERROR);
+			alert.setTitle("Error");
+			alert.setHeaderText("Oh no!");
+			alert.setContentText("Something went wrong");
+
+			// Create expandable Exception.
+			StringWriter sw = new StringWriter();
+			PrintWriter pw = new PrintWriter(sw);
+			e.printStackTrace(pw);
+			String exceptionText = sw.toString();
+
+			Label label = new Label("The exception stacktrace was:");
+
+			TextArea textArea = new TextArea(exceptionText);
+			textArea.setEditable(false);
+			textArea.setWrapText(true);
+
+			textArea.setMaxWidth(Double.MAX_VALUE);
+			textArea.setMaxHeight(Double.MAX_VALUE);
+			GridPane.setVgrow(textArea, Priority.ALWAYS);
+			GridPane.setHgrow(textArea, Priority.ALWAYS);
+
+			GridPane expContent = new GridPane();
+			expContent.setMaxWidth(Double.MAX_VALUE);
+			expContent.add(label, 0, 0);
+			expContent.add(textArea, 0, 1);
+
+			// Set expandable Exception into the dialog pane.
+			alert.getDialogPane().setExpandableContent(expContent);
+
+			alert.showAndWait();
 		}
 		
 	}
@@ -206,6 +269,16 @@ public class App extends Application{
 		init_stage.initStyle(StageStyle.TRANSPARENT);
 		init_stage.setAlwaysOnTop(true);
 		init_stage.show();
+	}
+	
+	public static Stage getPrimaryStage()
+	{
+		return primary_stage;
+	}
+	
+	public static Parent getRoot()
+	{
+		return root;
 	}
 
 	public interface InitCompletionHandler
